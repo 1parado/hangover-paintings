@@ -185,34 +185,33 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.25;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0908);
-scene.fog = new THREE.FogExp2(0x0b0908, 0.045);
+scene.fog = new THREE.FogExp2(0x0b0908, 0.018);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(0, 1.6, 9);
+camera.position.set(0, 2.0, 10.5);
 
 const controls = new OrbitControls(camera, canvas);
-controls.target.set(0, 1.6, 0);
+controls.target.set(0, 2.0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 2.2;
-controls.maxDistance = 12;
+controls.maxDistance = 16;
 controls.maxPolarAngle = Math.PI * 0.55;
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.35;
+controls.autoRotate = false;
 
 /* ================= 灯光 ================= */
-scene.add(new THREE.AmbientLight(0x2a2118, 1.4));
+scene.add(new THREE.AmbientLight(0x8a7a64, 2.2));
 
-const keyLight = new THREE.DirectionalLight(0xffe3b3, 0.5);
-keyLight.position.set(3, 8, 6);
+const keyLight = new THREE.DirectionalLight(0xffe3b3, 1.2);
+keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 
 function spotlight(x, y, z, targetY = 1.7) {
-  const s = new THREE.SpotLight(0xffdca0, 22, 14, 0.5, 0.55, 1.6);
+  const s = new THREE.SpotLight(0xffe6c0, 40, 18, 0.55, 0.7, 1.3);
   s.position.set(x, y, z);
   s.castShadow = false;
   scene.add(s, s.target);
@@ -228,35 +227,34 @@ const wallMat = new THREE.MeshStandardMaterial({ color: 0x14100c, roughness: 0.9
 const floorMat = new THREE.MeshStandardMaterial({
   color: 0x0d0b09, roughness: 0.25, metalness: 0.4
 });
-const R = 11;               // 房间半径（八边形）
-const H = 5;
+const R = 30;               // 展厅纵深（背景墙很远）
+const H = 7;
+const WALL_Z = -7;          // 正面展示墙
+const WALL_W = 30;
 
 // 地面
-const floor = new THREE.Mesh(new THREE.CircleGeometry(R + 2, 64), floorMat);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), floorMat);
 floor.rotation.x = -Math.PI/2;
 floor.receiveShadow = true;
 room.add(floor);
 
-// 八面墙
-const wallGeo = new THREE.PlaneGeometry(2 * R * Math.tan(Math.PI/8) + 0.4, H);
-for (let i = 0; i < 8; i++) {
-  const a = i * Math.PI/4 + Math.PI/8;
-  const w = new THREE.Mesh(wallGeo, wallMat);
-  w.position.set(Math.sin(a) * R, H/2, Math.cos(a) * R);
-  w.rotation.y = a;
-  w.receiveShadow = true;
-  room.add(w);
-}
+// 正面大墙 + 侧墙
+const wallMat2 = wallMat.clone();
+const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, H + 4), wallMat2);
+frontWall.position.set(0, (H + 4)/2 - 0.5, WALL_Z);
+frontWall.receiveShadow = true;
+room.add(frontWall);
+const sideL = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
+sideL.position.set(-WALL_W/2, 2.5, WALL_Z + 20); sideL.rotation.y = Math.PI/2;
+room.add(sideL);
+const sideR = sideL.clone(); sideR.position.x = WALL_W/2; sideR.rotation.y = -Math.PI/2;
+room.add(sideR);
 
-// 墙脚线 + 天花环
+// 墙脚线
 const trimMat = new THREE.MeshStandardMaterial({ color: 0x3a2f1e, roughness: .5, metalness: .6 });
-const trim = new THREE.Mesh(new THREE.CylinderGeometry(R+.05, R+.05, .12, 8, 1, true), trimMat);
-trim.position.y = 0.06; room.add(trim);
-const crown = new THREE.Mesh(new THREE.CylinderGeometry(R+.05, R+.05, .1, 8, 1, true), trimMat);
-crown.position.y = H - .05; room.add(crown);
-const ceiling = new THREE.Mesh(new THREE.CircleGeometry(R + 2, 64),
-  new THREE.MeshStandardMaterial({ color: 0x080605, roughness: 1 }));
-ceiling.rotation.x = Math.PI/2; ceiling.position.y = H; room.add(ceiling);
+const trimBox = new THREE.Mesh(new THREE.BoxGeometry(WALL_W + 1, 0.14, 0.2), trimMat);
+trimBox.position.set(0, 0.07, WALL_Z + 0.1);
+room.add(trimBox);
 
 /* ================= 画框 ================= */
 const frameMat  = new THREE.MeshStandardMaterial({ color: 0x2e2114, roughness: 0.35, metalness: 0.55 });
@@ -270,7 +268,7 @@ let loaded = 0;
 function addPainting(tex, idx) {
   const img = tex.image;
   const ratio = img.height / img.width;
-  const W = 2.1 / Math.sqrt(ratio);   // 面积大致一致
+  const W = 2.6 / Math.sqrt(ratio);   // 面积大致一致
   const Hh = W * ratio;
   const g = new THREE.Group();
 
@@ -284,7 +282,7 @@ function addPainting(tex, idx) {
   // 画布
   tex.colorSpace = THREE.SRGBColorSpace;
   const art = new THREE.Mesh(planeGeo, new THREE.MeshStandardMaterial({
-    map: tex, roughness: 0.85, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.06
+    map: tex, roughness: 0.9, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.18
   }));
   art.scale.set(W, Hh, 1);
   art.position.z = 0.05;
@@ -301,25 +299,23 @@ function addPainting(tex, idx) {
   plate.position.set(0, -Hh/2 - 0.22, 0.02);
   g.add(plate);
 
-  // ---- 放置：三面墙均匀分布 ----
-  const perWall = Math.ceil(COUNT / 3);
-  const wall = Math.floor(idx / perWall);           // 0,1,2
-  const iIn   = idx % perWall;
-  const nOn   = Math.min(perWall, COUNT - wall * perWall);
-  const angles = [0, Math.PI*2/3, Math.PI*4/3][wall];
-  const spread = Math.PI * 0.42;
-  const t = nOn === 1 ? 0.5 : iIn / (nOn - 1);
-  const ang = angles - spread/2 + spread * t;
-  const RR = R - 0.1;
-  g.position.set(Math.sin(ang) * RR, 1.75, Math.cos(ang) * RR);
-  g.rotation.y = ang;
-  g.lookAt(0, 1.75, 0);
+  // ---- 放置：正面墙 2 行 × 13 列网格 ----
+  const perRow = 13;
+  const row = Math.floor(idx / perRow);             // 0 上排, 1 下排
+  const col = idx % perRow;
+  const cellW = WALL_W / perRow;
+  const x = -WALL_W/2 + cellW * (col + 0.5);
+  const y = row === 0 ? 2.9 : 0.9;
+  // 每列宽度有限，画要缩小
+  const scale = Math.min(1, cellW / (W + 0.5)) * 0.92;
+  g.scale.setScalar(scale);
+  g.position.set(x, y, WALL_Z + 0.08);
 
-  // 每幅画上方一盏射灯
-  const sl = spotlight(g.position.x, 4.4, g.position.z);
-  sl.target.position.set(g.position.x, 1.7, g.position.z);
+  // 每幅画前方上方一盏射灯（离墙 2.2，斜照画面）
+  const sl = spotlight(g.position.x, 4.6, g.position.z + 2.2);
+  sl.target.position.set(g.position.x, 1.6, g.position.z);
 
-  g.userData = { idx, W, Hh, ang };
+  g.userData = { idx, W, Hh };
   paintings.push(g);
   room.add(g);
 }
@@ -379,12 +375,12 @@ function focus(p) {
   tweening = true;
 
   const idx = p.userData.idx;
-  const d = p.userData.Hh;
-  const dir = p.getWorldDirection(new THREE.Vector3());
-  const target = p.position.clone().add(dir.multiplyScalar(Math.max(2.2, d * 1.5)));
-  target.y = 1.75;
+  const world = new THREE.Vector3();
+  p.getWorldPosition(world);
+  const d = Math.max(2.2, p.userData.Hh * p.scale.x * 1.6);
+  const target = world.clone().add(new THREE.Vector3(0, 0, d));
 
-  tweenCam(target, p.position, () => { tweening = false; });
+  tweenCam(target, world, () => { tweening = false; });
 
   const desc = PRICES[[15,25,35,50][idx % 4]] || '约稿详谈 · 价格见右侧价目表';
   infoCard.querySelector('.title').textContent = `作品 ${String(idx+1).padStart(2,'0')}`;
@@ -397,10 +393,12 @@ function unfocus() {
   infoCard.classList.remove('show');
   controls.autoRotate = true;
   tweening = true;
-  tweenCam(new THREE.Vector3(0, 1.6, 9), new THREE.Vector3(0, 1.6, 0), () => tweening = false);
+  tweenCam(new THREE.Vector3(0, 2.0, 10.5), new THREE.Vector3(0, 2.0, 0), () => tweening = false);
 }
 
 let camAnim = null;
+const parallax = { x: 0, y: 0 };
+const baseCamX = 0;
 function tweenCam(pos, tgt, done) {
   camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, t: 0, done };
 }
@@ -415,6 +413,13 @@ document.getElementById('togglePrice').addEventListener('click', () => {
 /* ================= 循环 ================= */
 function animate(t) {
   requestAnimationFrame(animate);
+  // 鼠标视差：未聚焦时相机轻微跟随鼠标
+  if (!focused && !tweening) {
+    parallax.x += (pointer.x * 1.2 - parallax.x) * 0.03;
+    parallax.y += (pointer.y * 0.5 - parallax.y) * 0.03;
+    camera.position.x = baseCamX + parallax.x;
+    camera.position.y = 2.0 + parallax.y;
+  }
   if (camAnim) {
     camAnim.t = Math.min(1, camAnim.t + 0.018);
     const e = easeInOut(camAnim.t);
