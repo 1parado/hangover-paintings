@@ -44,59 +44,60 @@
   /* ---------- price panel ---------- */
   #pricePanel {
     position: fixed; right: 28px; top: 50%; transform: translateY(-50%);
-    z-index: 10; width: 252px; max-height: 78vh;
-    background: linear-gradient(160deg, rgba(24,20,15,.92), rgba(12,10,8,.94));
-    border: 1px solid rgba(201,168,106,.35); border-radius: 4px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 0 40px rgba(201,168,106,.05);
-    padding: 24px 22px; overflow-y: auto; backdrop-filter: blur(8px);
+    z-index: 10; width: 262px; max-height: 78vh;
+    background: rgba(255,255,255,.55);
+    -webkit-backdrop-filter: blur(24px) saturate(1.7);
+    backdrop-filter: blur(24px) saturate(1.7);
+    border: 1px solid rgba(255,255,255,.65); border-radius: 22px;
+    box-shadow: 0 16px 48px rgba(120, 90, 70, .22), inset 0 1px 0 rgba(255,255,255,.85);
+    padding: 24px 22px; overflow-y: auto;
     transition: transform .5s cubic-bezier(.22,1,.36,1), opacity .5s;
   }
-  #pricePanel.hidden-panel { transform: translateY(-50%) translateX(300px); opacity: 0; }
-  #pricePanel::before {
-    content: ""; position: absolute; inset: 6px; pointer-events: none;
-    border: 1px solid rgba(201,168,106,.18);
-  }
+  #pricePanel.hidden-panel { transform: translateY(-50%) translateX(320px); opacity: 0; }
   #pricePanel h2 {
-    color: var(--gold); font-size: 17px; letter-spacing: .5em; text-indent: .5em;
-    text-align: center; margin-bottom: 4px; font-weight: 500;
+    color: #6b4f33; font-size: 17px; letter-spacing: .5em; text-indent: .5em;
+    text-align: center; margin-bottom: 4px; font-weight: 600;
   }
-  #pricePanel .sub { color: var(--gold-dim); font-size: 10px; letter-spacing: .3em; text-align: center; margin-bottom: 18px; }
+  #pricePanel .sub { color: rgba(107,79,51,.55); font-size: 10px; letter-spacing: .3em; text-align: center; margin-bottom: 18px; }
   #pricePanel ul { list-style: none; }
   #pricePanel li {
     display: flex; justify-content: space-between; align-items: baseline;
-    padding: 9px 2px; color: var(--paper); font-size: 13.5px; letter-spacing: .08em;
-    border-bottom: 1px dashed rgba(201,168,106,.18);
+    padding: 9px 2px; color: #3d3227; font-size: 13.5px; letter-spacing: .08em;
+    border-bottom: 1px dashed rgba(107,79,51,.25);
   }
-  #pricePanel li .price { color: var(--gold); font-size: 15px; }
+  #pricePanel li .price { color: #a0522d; font-size: 15px; font-weight: 600; }
   #pricePanel .note {
-    margin-top: 16px; color: rgba(242,234,217,.5); font-size: 11.5px;
+    margin-top: 16px; color: rgba(61,50,39,.65); font-size: 11.5px;
     line-height: 1.9; letter-spacing: .05em;
   }
-  #pricePanel .note b { color: var(--gold); font-weight: normal; }
+  #pricePanel .note b { color: #a0522d; font-weight: 600; }
 
   /* ---------- toggle ---------- */
   #togglePrice {
     position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-    z-index: 11; width: 34px; height: 76px;
-    background: rgba(24,20,15,.9); border: 1px solid rgba(201,168,106,.35); border-right: none;
-    color: var(--gold); cursor: pointer; font-size: 13px; letter-spacing: .1em;
+    z-index: 11; width: 36px; height: 80px;
+    border-right: none; border-radius: 18px 0 0 18px;
+    color: #7a5c3e; cursor: pointer; font-size: 13px; letter-spacing: .1em;
     writing-mode: vertical-lr; display: flex; align-items: center; justify-content: center;
     transition: right .5s cubic-bezier(.22,1,.36,1);
   }
-  body.panel-open #togglePrice { right: 284px; }
+  body.panel-open #togglePrice { right: 292px; }
 
   /* ---------- artwork info card ---------- */
   #infoCard {
     position: fixed; left: 32px; bottom: 32px; z-index: 10;
-    max-width: 340px; padding: 20px 24px;
-    background: linear-gradient(160deg, rgba(24,20,15,.92), rgba(12,10,8,.94));
-    border: 1px solid rgba(201,168,106,.35); border-left: 3px solid var(--gold);
-    color: var(--paper); opacity: 0; transform: translateY(16px);
+    max-width: 340px; padding: 18px 24px;
+    background: rgba(255,255,255,.55);
+    -webkit-backdrop-filter: blur(24px) saturate(1.7);
+    backdrop-filter: blur(24px) saturate(1.7);
+    border: 1px solid rgba(255,255,255,.65); border-radius: 20px;
+    box-shadow: 0 12px 36px rgba(120, 90, 70, .22), inset 0 1px 0 rgba(255,255,255,.85);
+    color: #3d3227; opacity: 0; transform: translateY(16px);
     transition: opacity .45s ease, transform .45s ease; pointer-events: none;
   }
   #infoCard.show { opacity: 1; transform: translateY(0); }
-  #infoCard .title { font-size: 17px; letter-spacing: .15em; color: var(--gold); margin-bottom: 8px; }
-  #infoCard .desc { font-size: 12.5px; line-height: 1.8; color: rgba(242,234,217,.75); letter-spacing: .06em; }
+  #infoCard .title { font-size: 17px; letter-spacing: .15em; color: #6b4f33; font-weight: 600; margin-bottom: 8px; }
+  #infoCard .desc { font-size: 12.5px; line-height: 1.8; color: rgba(61,50,39,.8); letter-spacing: .06em; }
 
   /* ---------- footer ---------- */
   footer {
@@ -183,7 +184,7 @@
   <div class="hint">拖动环视 · 滚轮缩放 · 点击画作查看</div>
 </header>
 
-<button id="togglePrice" title="展开/收起价目表">❦ 价目 ❦</button>
+<button id="togglePrice" class="glass" title="展开/收起价目表">❦ 价目 ❦</button>
 
 <aside id="pricePanel">
   <h2>稿价一览</h2>
