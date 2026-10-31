@@ -266,7 +266,8 @@ room.add(frontWall);
 const sideL = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
 sideL.position.set(-WALL_W/2, 2.5, WALL_Z + 20); sideL.rotation.y = Math.PI/2;
 room.add(sideL);
-const sideR = sideL.clone(); sideR.position.x = WALL_W/2; sideR.rotation.y = -Math.PI/2;
+const sideR = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
+sideR.position.set(WALL_W/2, 2.5, WALL_Z + 20); sideR.rotation.y = -Math.PI/2;
 room.add(sideR);
 
 // 墙脚线
@@ -371,21 +372,40 @@ function addPainting(tex, idx) {
   plate.position.set(0, -Hh/2 - 0.22, 0.02);
   g.add(plate);
 
-  // ---- 放置：正面墙 2 行 × 13 列网格 ----
-  const perRow = 13;
-  const row = Math.floor(idx / perRow);             // 0 上排, 1 下排
-  const col = idx % perRow;
-  const cellW = WALL_W / perRow;
-  const x = -WALL_W/2 + cellW * (col + 0.5);
-  const y = row === 0 ? 3.6 : 1.7;
+  // ---- 放置：三面墙（正/左/右），每面墙 2 行 ----
+  // 三面墙定义：法线朝向展厅中心
+  const walls = [
+    { pos: new THREE.Vector3(0, 0, WALL_Z),        rotY: 0 },                          // 正面墙
+    { pos: new THREE.Vector3(-WALL_W/2, 0, WALL_Z + WALL_W/2), rotY: Math.PI/2 },      // 左墙
+    { pos: new THREE.Vector3( WALL_W/2, 0, WALL_Z + WALL_W/2), rotY: -Math.PI/2 },     // 右墙
+  ];
+  const perWall = Math.ceil(COUNT / 3);             // 每面墙约 9 幅
+  const wallIdx = Math.floor(idx / perWall);        // 0,1,2
+  const iIn = idx % perWall;
+  const nOn = Math.min(perWall, COUNT - wallIdx * perWall);
+  const perRow = Math.ceil(nOn / 2);
+  const row = Math.floor(iIn / perRow);             // 0 上排, 1 下排
+  const col = iIn % perRow;
+  const nInRow = row === 0 ? perRow : nOn - perRow;
+  const cellW = WALL_W / Math.max(perRow, 1);
+  const localX = -WALL_W/2 + cellW * (col + 0.5) + (row === 1 ? (WALL_W - nInRow * cellW) / 2 : 0);
+  const localY = row === 0 ? 3.4 : 1.6;
   // 每列宽度有限，画要缩小
   const scale = Math.min(1, cellW / (W + 0.5)) * 0.92;
   g.scale.setScalar(scale);
-  g.position.set(x, y, WALL_Z + 0.15);
+  const wl = walls[wallIdx];
+  g.position.copy(wl.pos);
+  g.rotation.y = wl.rotY;
+  // 沿墙局部 x 轴偏移 + 略离墙面
+  const right = new THREE.Vector3(Math.cos(wl.rotY), 0, -Math.sin(wl.rotY));
+  const out   = new THREE.Vector3(Math.sin(wl.rotY), 0,  Math.cos(wl.rotY));
+  g.position.add(right.multiplyScalar(localX));
+  g.position.add(out.multiplyScalar(0.15));
+  g.position.y = localY;
 
   // 射灯已在场景初始化时统一布置（数量过多会导致着色器不稳定/闪烁）
 
-  g.userData = { idx, W, Hh, baseY: y };
+  g.userData = { idx, W, Hh, baseY: localY };
   paintings.push(g);
   room.add(g);
 }
