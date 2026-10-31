@@ -306,20 +306,36 @@ function addPainting(tex, idx) {
   const g = new THREE.Group();
 
   // 画框（外）
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.22, Hh + 0.22, 0.09), frameMat);
-  frame.position.z = -0.02;
-  g.add(frame);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.22, Hh + 0.22, 0.06), frameMat);
+  g.add(frame);                                  // 前表面 z=0.03
   // 金边
-  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.08), goldMat);
-  bevel.position.z = 0.01;
+  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.06), goldMat);
+  bevel.position.z = 0.04;                       // 前表面 z=0.07
   g.add(bevel);
   // 画布
   tex.colorSpace = THREE.SRGBColorSpace;
-  const art = new THREE.Mesh(planeGeo, new THREE.MeshStandardMaterial({
-    map: tex, roughness: 0.9, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.08
-  }));
+  const artMat = new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.9, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.08,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
+  });
+  // 检测画面亮度：白纸线稿自动压暗，避免刺眼
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 16;
+    const cx = c.getContext('2d');
+    cx.drawImage(tex.image, 0, 0, 16, 16);
+    const d = cx.getImageData(0, 0, 16, 16).data;
+    let lum = 0;
+    for (let i = 0; i < d.length; i += 4) lum += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    lum /= d.length / 4;
+    if (lum > 170) {                // 亮背景（未上色线稿）
+      artMat.color = new THREE.Color(0xb9b2a6);   // 暖灰压暗
+      artMat.emissiveIntensity = 0;
+    }
+  } catch (e) {}
+  const art = new THREE.Mesh(planeGeo, artMat);
   art.scale.set(W, Hh, 1);
-  art.position.z = 0.06;
+  art.position.z = 0.1;                          // 前表面 z=0.10，与金边差 0.03
   g.add(art);
 
   // 挂绳 + 钉子（装饰）
