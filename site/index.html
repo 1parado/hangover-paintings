@@ -106,27 +106,52 @@
 
   #bgmToggle {
     position: fixed; left: 28px; top: 24px; z-index: 11;
-    background: rgba(24,20,15,.85); border: 1px solid rgba(201,168,106,.4);
-    color: var(--gold); font-family: inherit; font-size: 12px; letter-spacing: .15em;
-    padding: 8px 14px; border-radius: 3px; cursor: pointer; transition: background .3s;
+    font-family: inherit; font-size: 12px; letter-spacing: .15em;
+    padding: 8px 16px; border-radius: 17px; cursor: pointer; transition: background .3s;
   }
-  #bgmToggle:hover { background: rgba(58,47,30,.9); }
-  #bgmToggle.on { color: #ffe9b8; border-color: #ffe9b8; }
+  #bgmToggle:hover { background: rgba(255,255,255,.75); }
+  #bgmToggle.on { color: #2a2015; border-color: rgba(255,255,255,.9); background: rgba(255,244,214,.8); }
+
+  /* ---------- 上一幅/下一幅（移动端） ---------- */
+  #artNav {
+    display: none;
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 11;
+    gap: 12px;
+  }
+  #artNav button {
+    width: 76px; height: 46px; border-radius: 23px;
+    font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    touch-action: manipulation; user-select: none;
+    transition: transform .2s, background .3s;
+  }
+  #artNav button:hover { background: rgba(255,255,255,.75); }
+  #artNav button:active { transform: scale(.92); }
+  #artNav .label { font-size: 11px; letter-spacing: .1em; }
+
+  /* ---------- iOS 浅色玻璃控件 ---------- */
+  .glass {
+    background: rgba(255,255,255,.55);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+    border: 1px solid rgba(255,255,255,.65);
+    box-shadow: 0 8px 24px rgba(120, 90, 70, .18), inset 0 1px 0 rgba(255,255,255,.8);
+    color: #7a5c3e;
+  }
 
   /* ---------- 转墙按钮 ---------- */
   .wallBtn {
     position: fixed; top: 62%; transform: translateY(-50%); z-index: 11;
-    width: 46px; height: 64px; border-radius: 4px;
-    background: rgba(24,20,15,.75); border: 1px solid rgba(201,168,106,.4);
-    color: var(--gold); font-size: 20px; cursor: pointer;
+    width: 46px; height: 64px; border-radius: 21px;
+    font-size: 22px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    transition: background .3s, opacity .3s; user-select: none; touch-action: manipulation;
+    transition: transform .2s, background .3s; user-select: none; touch-action: manipulation;
   }
-  .wallBtn:hover { background: rgba(58,47,30,.9); }
+  .wallBtn:hover { background: rgba(255,255,255,.75); }
+  .wallBtn:active { transform: translateY(-50%) scale(.92); }
   #wallLeft  { left: 14px; }
   #wallRight { right: 14px; }
   body.panel-open #wallRight { right: 288px; }
-  .wallBtn:active { transform: translateY(-50%) scale(.94); }
 
   @media (max-width: 768px) {
     header { padding: 14px 14px; }
@@ -185,10 +210,15 @@
   <div class="desc"></div>
 </div>
 
-<button id="bgmToggle" title="开关背景音乐">♪ 音乐:关</button>
+<button id="bgmToggle" class="glass" title="开关背景音乐">♪ 音乐:关</button>
 
-<button class="wallBtn" id="wallLeft" title="看左边的墙">‹</button>
-<button class="wallBtn" id="wallRight" title="看右边的墙">›</button>
+<button class="wallBtn glass" id="wallLeft" title="看左边的墙">‹</button>
+<button class="wallBtn glass" id="wallRight" title="看右边的墙">›</button>
+
+<div id="artNav">
+  <button id="artPrev" class="glass"><span>‹</span><span class="label">上一幅</span></button>
+  <button id="artNext" class="glass"><span class="label">下一幅</span><span>›</span></button>
+</div>
 
 <footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
 
@@ -247,7 +277,7 @@ controls.target.set(0, 2.0, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 2.2;
-controls.maxDistance = 16;
+controls.maxDistance = 24;
 controls.maxPolarAngle = Math.PI * 0.55;
 controls.autoRotate = false;
 
@@ -575,6 +605,27 @@ addEventListener('keydown', e => {
     unfocus();
   }
 });
+
+/* ================= 上一幅/下一幅按钮（移动端） ================= */
+const artNav = document.getElementById('artNav');
+function isTouchLike() {
+  return matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 768px)').matches;
+}
+function updateArtNav() {
+  artNav.style.display = isTouchLike() ? 'flex' : 'none';
+}
+document.getElementById('artPrev').addEventListener('click', () => {
+  let idx = focused ? focused.userData.idx - 1 : COUNT - 1;
+  idx = ((idx % COUNT) + COUNT) % COUNT;
+  focusByIndex(idx);
+});
+document.getElementById('artNext').addEventListener('click', () => {
+  let idx = focused ? focused.userData.idx + 1 : 0;
+  idx = ((idx % COUNT) + COUNT) % COUNT;
+  focusByIndex(idx);
+});
+updateArtNav();
+addEventListener('resize', updateArtNav);
 
 /* ================= 转墙按钮 ================= */
 // 相机飞到某面墙正前方的观赏位
