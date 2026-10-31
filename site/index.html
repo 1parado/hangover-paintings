@@ -104,6 +104,15 @@
     color: rgba(242,234,217,.35); font-size: 11px; letter-spacing: .35em; z-index: 10; pointer-events: none;
   }
 
+  #bgmToggle {
+    position: fixed; left: 28px; top: 24px; z-index: 11;
+    background: rgba(24,20,15,.85); border: 1px solid rgba(201,168,106,.4);
+    color: var(--gold); font-family: inherit; font-size: 12px; letter-spacing: .15em;
+    padding: 8px 14px; border-radius: 3px; cursor: pointer; transition: background .3s;
+  }
+  #bgmToggle:hover { background: rgba(58,47,30,.9); }
+  #bgmToggle.on { color: #ffe9b8; border-color: #ffe9b8; }
+
   @media (max-width: 768px) {
     header { padding: 16px 18px; }
     header .brand { font-size: 15px; letter-spacing: .25em; }
@@ -156,7 +165,13 @@
   <div class="desc"></div>
 </div>
 
+<button id="bgmToggle" title="开关背景音乐">♪ 音乐:关</button>
+
 <footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
+
+<audio id="bgm" loop preload="none">
+  <source src="bgm.mp3" type="audio/mpeg">
+</audio>
 
 <script type="importmap">
 { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -204,20 +219,24 @@ controls.maxPolarAngle = Math.PI * 0.55;
 controls.autoRotate = false;
 
 /* ================= 灯光 ================= */
-scene.add(new THREE.AmbientLight(0xfff2dd, 1.6));
+scene.add(new THREE.AmbientLight(0xfff2dd, 1.8));
+scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6b543c, 0.9));
 
 const keyLight = new THREE.DirectionalLight(0xfff0d8, 1.6);
 keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 
 function spotlight(x, y, z, targetY = 1.7) {
-  const s = new THREE.SpotLight(0xffeed0, 30, 18, 0.55, 0.7, 1.3);
+  const s = new THREE.SpotLight(0xffeed0, 120, 25, 0.7, 0.8, 1.2);
   s.position.set(x, y, z);
   s.castShadow = false;
   scene.add(s, s.target);
   s.target.position.set(x, targetY, z * 0.2);
   return s;
 }
+
+// 只用 3 盏宽射灯覆盖整面墙（灯光数量过多会导致闪烁）
+// （在下方房间区域定义 WALL_Z 后统一布置）
 
 /* ================= 房间 ================= */
 const room = new THREE.Group();
@@ -255,6 +274,9 @@ const trimMat = new THREE.MeshStandardMaterial({ color: 0x3a2f1e, roughness: .5,
 const trimBox = new THREE.Mesh(new THREE.BoxGeometry(WALL_W + 1, 0.14, 0.2), trimMat);
 trimBox.position.set(0, 0.07, WALL_Z + 0.1);
 room.add(trimBox);
+
+// 3 盏宽射灯覆盖整面墙（灯光数量过多会导致着色器闪烁）
+[[-9, 1.5], [0, 1.5], [9, 1.5]].forEach(([x]) => spotlight(x, 6.2, WALL_Z + 4.5, 1.5));
 
 // 天花板
 const ceiling2 = new THREE.Mesh(new THREE.PlaneGeometry(80, 80),
@@ -355,17 +377,15 @@ function addPainting(tex, idx) {
   const col = idx % perRow;
   const cellW = WALL_W / perRow;
   const x = -WALL_W/2 + cellW * (col + 0.5);
-  const y = row === 0 ? 2.9 : 0.9;
+  const y = row === 0 ? 3.6 : 1.7;
   // 每列宽度有限，画要缩小
   const scale = Math.min(1, cellW / (W + 0.5)) * 0.92;
   g.scale.setScalar(scale);
   g.position.set(x, y, WALL_Z + 0.15);
 
-  // 每幅画前方上方一盏射灯（离墙 2.2，斜照画面）
-  const sl = spotlight(g.position.x, 4.6, g.position.z + 2.2);
-  sl.target.position.set(g.position.x, 1.6, g.position.z);
+  // 射灯已在场景初始化时统一布置（数量过多会导致着色器不稳定/闪烁）
 
-  g.userData = { idx, W, Hh };
+  g.userData = { idx, W, Hh, baseY: y };
   paintings.push(g);
   room.add(g);
 }
@@ -472,6 +492,21 @@ addEventListener('keydown', e => {
   }
 });
 
+/* ================= BGM ================= */
+const bgm = document.getElementById('bgm');
+const bgmToggle = document.getElementById('bgmToggle');
+bgmToggle.addEventListener('click', () => {
+  if (bgm.paused) {
+    bgm.volume = 0.45;
+    bgm.play().then(() => bgmToggle.textContent = '♪ 音乐:开').catch(() => {
+      bgmToggle.textContent = '♪ 未找到bgm.mp3';
+    });
+  } else {
+    bgm.pause();
+    bgmToggle.textContent = '♪ 音乐:关';
+  }
+});
+
 /* ================= 面板开关 ================= */
 document.getElementById('togglePrice').addEventListener('click', () => {
   document.body.classList.toggle('panel-open');
@@ -496,7 +531,7 @@ function animate(t) {
     if (camAnim.t >= 1) { const d = camAnim.done; camAnim = null; d && d(); }
   }
   // 轻微漂浮呼吸感
-  paintings.forEach((p, i) => { p.position.y = 1.75 + Math.sin(t * 0.0008 + i) * 0.008; });
+  paintings.forEach((p, i) => { p.position.y = p.userData.baseY + Math.sin(t * 0.0008 + i) * 0.008; });
   controls.update();
   renderer.render(scene, camera);
 }
