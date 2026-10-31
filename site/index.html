@@ -188,10 +188,10 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.95;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0908);
-scene.fog = new THREE.FogExp2(0x0b0908, 0.018);
+scene.background = new THREE.Color(0x1c1712);
+scene.fog = new THREE.FogExp2(0x1c1712, 0.012);
 
-const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.05, 100);
 camera.position.set(0, 2.0, 10.5);
 
 const controls = new OrbitControls(camera, canvas);
@@ -204,14 +204,14 @@ controls.maxPolarAngle = Math.PI * 0.55;
 controls.autoRotate = false;
 
 /* ================= 灯光 ================= */
-scene.add(new THREE.AmbientLight(0x8a7a64, 2.2));
+scene.add(new THREE.AmbientLight(0xfff2dd, 1.6));
 
-const keyLight = new THREE.DirectionalLight(0xffe3b3, 0.8);
+const keyLight = new THREE.DirectionalLight(0xfff0d8, 1.6);
 keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 
 function spotlight(x, y, z, targetY = 1.7) {
-  const s = new THREE.SpotLight(0xffe6c0, 22, 18, 0.55, 0.7, 1.3);
+  const s = new THREE.SpotLight(0xffeed0, 30, 18, 0.55, 0.7, 1.3);
   s.position.set(x, y, z);
   s.castShadow = false;
   scene.add(s, s.target);
@@ -223,9 +223,9 @@ function spotlight(x, y, z, targetY = 1.7) {
 const room = new THREE.Group();
 scene.add(room);
 
-const wallMat = new THREE.MeshStandardMaterial({ color: 0x14100c, roughness: 0.95 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xb8ab96, roughness: 0.92 });
 const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x0d0b09, roughness: 0.25, metalness: 0.4
+  color: 0x5c4632, roughness: 0.35, metalness: 0.1
 });
 const R = 30;               // 展厅纵深（背景墙很远）
 const H = 7;
@@ -256,6 +256,39 @@ const trimBox = new THREE.Mesh(new THREE.BoxGeometry(WALL_W + 1, 0.14, 0.2), tri
 trimBox.position.set(0, 0.07, WALL_Z + 0.1);
 room.add(trimBox);
 
+// 天花板
+const ceiling2 = new THREE.Mesh(new THREE.PlaneGeometry(80, 80),
+  new THREE.MeshStandardMaterial({ color: 0xd8d0c0, roughness: 1 }));
+ceiling2.rotation.x = Math.PI/2; ceiling2.position.y = H;
+room.add(ceiling2);
+
+// 天花板轨道灯条
+const trackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: .4, metalness: .7 });
+const track = new THREE.Mesh(new THREE.BoxGeometry(WALL_W * 0.8, 0.06, 0.12), trackMat);
+track.position.set(0, H - 0.1, WALL_Z + 2.2);
+room.add(track);
+for (let i = 0; i < 13; i++) {
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.18, 10), trackMat);
+  head.position.set(-WALL_W*0.4 + i * (WALL_W*0.8/12), H - 0.22, WALL_Z + 2.2);
+  head.rotation.x = 0.45;
+  room.add(head);
+}
+
+// 展厅长椅（两张）
+const benchMat = new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: .55 });
+function bench(x) {
+  const b = new THREE.Group();
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.1, 0.55), benchMat);
+  seat.position.y = 0.45; seat.castShadow = true; b.add(seat);
+  [-0.9, 0.9].forEach(ox => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.45), benchMat);
+    leg.position.set(ox, 0.22, 0); b.add(leg);
+  });
+  b.position.set(x, 0, 2.5);
+  room.add(b);
+}
+bench(-4); bench(4);
+
 /* ================= 画框 ================= */
 const frameMat  = new THREE.MeshStandardMaterial({ color: 0x2e2114, roughness: 0.35, metalness: 0.55 });
 const goldMat   = new THREE.MeshStandardMaterial({ color: 0x8a744a, roughness: 0.3,  metalness: 0.8 });
@@ -274,10 +307,11 @@ function addPainting(tex, idx) {
 
   // 画框（外）
   const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.22, Hh + 0.22, 0.09), frameMat);
-  frame.castShadow = true;
+  frame.position.z = -0.02;
   g.add(frame);
   // 金边
-  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.095), goldMat);
+  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.08), goldMat);
+  bevel.position.z = 0.01;
   g.add(bevel);
   // 画布
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -285,7 +319,7 @@ function addPainting(tex, idx) {
     map: tex, roughness: 0.9, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.08
   }));
   art.scale.set(W, Hh, 1);
-  art.position.z = 0.05;
+  art.position.z = 0.06;
   g.add(art);
 
   // 挂绳 + 钉子（装饰）
@@ -309,7 +343,7 @@ function addPainting(tex, idx) {
   // 每列宽度有限，画要缩小
   const scale = Math.min(1, cellW / (W + 0.5)) * 0.92;
   g.scale.setScalar(scale);
-  g.position.set(x, y, WALL_Z + 0.08);
+  g.position.set(x, y, WALL_Z + 0.15);
 
   // 每幅画前方上方一盏射灯（离墙 2.2，斜照画面）
   const sl = spotlight(g.position.x, 4.6, g.position.z + 2.2);
