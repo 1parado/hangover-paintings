@@ -176,7 +176,7 @@
 
 <div id="loader">
   <div class="ring"></div>
-  <div class="txt">橱窗布置中</div>
+  <div class="txt">橱窗布置中 <span id="loadPct">0%</span></div>
 </div>
 
 <header>
@@ -505,6 +505,7 @@ function addPainting(tex, idx) {
 IMGS.forEach((src, idx) => {
   loader.load(src, tex => {
     addPainting(tex, idx);
+    updateLoadProgress();
     if (++loaded === COUNT) init();
   }, undefined, () => { if (++loaded === COUNT) init(); }); // 失败也继续
 });
@@ -707,6 +708,10 @@ addEventListener('resize', () => {
 });
 
 /* ================= 启动 ================= */
+function updateLoadProgress() {
+  const el = document.getElementById('loadPct');
+  if (el) el.textContent = Math.round(loaded / COUNT * 100) + '%';
+}
 function init() {
   document.getElementById('loader').classList.add('hide');
 }
