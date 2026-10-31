@@ -4,7 +4,7 @@
     {
       "name": "draw-gallery",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8734", "--directory", "site"],
+      "runtimeArgs": ["-m", "http.server", "8734", "--directory", "."],
       "port": 8734
     }
   ]
