@@ -169,7 +169,8 @@
 
 <footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
 
-<audio id="bgm" loop preload="none">
+<audio id="bgm" loop preload="auto">
+  <source src="bgm.aac" type="audio/aac">
   <source src="bgm.mp3" type="audio/mpeg">
 </audio>
 
@@ -203,8 +204,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.95;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1c1712);
-scene.fog = new THREE.FogExp2(0x1c1712, 0.012);
+scene.background = new THREE.Color(0x2a2226);
+scene.fog = new THREE.FogExp2(0x2a2226, 0.01);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.05, 100);
 camera.position.set(0, 2.0, 10.5);
@@ -219,10 +220,10 @@ controls.maxPolarAngle = Math.PI * 0.55;
 controls.autoRotate = false;
 
 /* ================= 灯光 ================= */
-scene.add(new THREE.AmbientLight(0xfff2dd, 1.8));
-scene.add(new THREE.HemisphereLight(0xfff4e0, 0x6b543c, 0.9));
+scene.add(new THREE.AmbientLight(0xfff0f2, 2.0));
+scene.add(new THREE.HemisphereLight(0xfff0f4, 0xd9a8a0, 1.1));
 
-const keyLight = new THREE.DirectionalLight(0xfff0d8, 1.6);
+const keyLight = new THREE.DirectionalLight(0xfff0f4, 1.7);
 keyLight.position.set(0, 8, 10);
 scene.add(keyLight);
 
@@ -242,9 +243,9 @@ function spotlight(x, y, z, targetY = 1.7) {
 const room = new THREE.Group();
 scene.add(room);
 
-const wallMat = new THREE.MeshStandardMaterial({ color: 0xb8ab96, roughness: 0.92 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xf2e4e0, roughness: 0.95 });   // 樱花粉白墙
 const floorMat = new THREE.MeshStandardMaterial({
-  color: 0x5c4632, roughness: 0.35, metalness: 0.1
+  color: 0x8a5f4d, roughness: 0.3, metalness: 0.08   // 暖粉棕木地板
 });
 const R = 30;               // 展厅纵深（背景墙很远）
 const H = 7;
@@ -281,9 +282,38 @@ room.add(trimBox);
 
 // 天花板
 const ceiling2 = new THREE.Mesh(new THREE.PlaneGeometry(80, 80),
-  new THREE.MeshStandardMaterial({ color: 0xd8d0c0, roughness: 1 }));
+  new THREE.MeshStandardMaterial({ color: 0xfaeef0, roughness: 1 }));
 ceiling2.rotation.x = Math.PI/2; ceiling2.position.y = H;
 room.add(ceiling2);
+
+// 粉色踢脚线（三面墙）
+const skirtMat = new THREE.MeshStandardMaterial({ color: 0xe8b4c0, roughness: .6 });
+function skirt(cx, cz, len, rotY) {
+  const s = new THREE.Mesh(new THREE.BoxGeometry(len, 0.16, 0.06), skirtMat);
+  s.position.set(cx, 0.08, cz); s.rotation.y = rotY;
+  room.add(s);
+}
+skirt(0, WALL_Z + 0.05, WALL_W, 0);
+skirt(-WALL_W/2 + 0.03, WALL_Z + WALL_W/2, WALL_W, Math.PI/2);
+skirt(WALL_W/2 - 0.03, WALL_Z + WALL_W/2, WALL_W, Math.PI/2);
+
+// 彩旗串（跨厅，二次元氛围）
+const flagColors = [0xff9eb5, 0xffd383, 0x9ed8ff, 0xc7f0c2, 0xe4c4ff];
+function flagLine(x1, z1, x2, z2, y) {
+  const n = 14;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const sag = Math.sin(t * Math.PI) * 0.28;
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.22, 3),
+      new THREE.MeshStandardMaterial({ color: flagColors[i % 5], roughness: .8, side: THREE.DoubleSide }));
+    fl.position.set(x1 + (x2-x1)*t, y - sag - 0.1, z1 + (z2-z1)*t);
+    fl.rotation.x = Math.PI;
+    room.add(fl);
+  }
+}
+flagLine(-10, 3.5, 10, 3.5, H - 0.6);
+flagLine(-WALL_W/2 + 0.5, WALL_Z + 6, 0, WALL_Z + 6, H - 0.6);
+flagLine(0, WALL_Z + 6, WALL_W/2 - 0.5, WALL_Z + 6, H - 0.6);
 
 // 天花板轨道灯条
 const trackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: .4, metalness: .7 });
@@ -297,24 +327,12 @@ for (let i = 0; i < 13; i++) {
   room.add(head);
 }
 
-// 展厅长椅（两张）
-const benchMat = new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: .55 });
-function bench(x) {
-  const b = new THREE.Group();
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.1, 0.55), benchMat);
-  seat.position.y = 0.45; seat.castShadow = true; b.add(seat);
-  [-0.9, 0.9].forEach(ox => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.45), benchMat);
-    leg.position.set(ox, 0.22, 0); b.add(leg);
-  });
-  b.position.set(x, 0, 2.5);
-  room.add(b);
-}
-bench(-4); bench(4);
+// （长椅已按需求移除）
 
 /* ================= 画框 ================= */
 const frameMat  = new THREE.MeshStandardMaterial({ color: 0x2e2114, roughness: 0.35, metalness: 0.55 });
 const goldMat   = new THREE.MeshStandardMaterial({ color: 0x8a744a, roughness: 0.3,  metalness: 0.8 });
+const matBoardMat = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.95 });
 const planeGeo  = new THREE.PlaneGeometry(1, 1);
 
 const paintings = [];
@@ -328,13 +346,17 @@ function addPainting(tex, idx) {
   const Hh = W * ratio;
   const g = new THREE.Group();
 
-  // 画框（外）
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.22, Hh + 0.22, 0.06), frameMat);
-  g.add(frame);                                  // 前表面 z=0.03
-  // 金边
-  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.06), goldMat);
-  bevel.position.z = 0.04;                       // 前表面 z=0.07
+  // 画框设计：外深木框 + 内金斜边 + 画布留白衬边（passe-partout）
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, Hh + 0.3, 0.07), frameMat);
+  g.add(frame);                                  // 前表面 z=0.035
+  // 金色内衬斜边（略小于外框，凸出）
+  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.16, Hh + 0.16, 0.05), goldMat);
+  bevel.position.z = 0.045;                      // 前表面 z=0.07
   g.add(bevel);
+  // 卡纸衬边（米白，位于金边内、画布后）
+  const mat = new THREE.Mesh(new THREE.BoxGeometry(W + 0.04, Hh + 0.04, 0.045), matBoardMat);
+  mat.position.z = 0.055;                        // 前表面 z≈0.078，略低于画布
+  g.add(mat);
   // 画布
   tex.colorSpace = THREE.SRGBColorSpace;
   const artMat = new THREE.MeshStandardMaterial({
@@ -358,7 +380,7 @@ function addPainting(tex, idx) {
   } catch (e) {}
   const art = new THREE.Mesh(planeGeo, artMat);
   art.scale.set(W, Hh, 1);
-  art.position.z = 0.1;                          // 前表面 z=0.10，与金边差 0.03
+  art.position.z = 0.105;                        // 前表面 z=0.105，衬边之上
   g.add(art);
 
   // 挂绳 + 钉子（装饰）
@@ -405,7 +427,7 @@ function addPainting(tex, idx) {
 
   // 射灯已在场景初始化时统一布置（数量过多会导致着色器不稳定/闪烁）
 
-  g.userData = { idx, W, Hh, baseY: localY };
+  g.userData = { idx, W, Hh, baseY: localY, wallIdx, localX };
   paintings.push(g);
   room.add(g);
 }
@@ -467,8 +489,11 @@ function focus(p) {
   const idx = p.userData.idx;
   const world = new THREE.Vector3();
   p.getWorldPosition(world);
+  // 相机飞到画的正前方（沿画的朝向外移）
+  const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(p.quaternion);
   const d = Math.max(2.2, p.userData.Hh * p.scale.x * 1.6);
-  const target = world.clone().add(new THREE.Vector3(0, 0, d));
+  const target = world.clone().add(normal.multiplyScalar(d));
+  target.y = world.y;
 
   tweenCam(target, world, () => { tweening = false; });
 
@@ -495,18 +520,38 @@ function tweenCam(pos, tgt, done) {
 const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
 /* ================= 键盘导航 ================= */
+// 按「正面墙(左→右) → 右墙(前→后) → 左墙(后→前)」的空间顺序排列索引，
+// 左右键沿这条路径走，到墙尽头自然"拐弯"进入下一面墙
+function spatialOrder(a, b) {
+  const wallOf = g => g.userData.wallIdx;
+  const wallRank = w => w === 0 ? 0 : (w === 2 ? 1 : 2);   // 正0 右1 左2
+  if (wallRank(wallOf(a)) !== wallRank(wallOf(b))) return wallRank(wallOf(a)) - wallRank(wallOf(b));
+  // 同墙：按 localX 从小到大（即从左到右/从前到后）
+  return a.userData.localX - b.userData.localX;
+}
+let ordered = null;
+function getOrder() {
+  if (!ordered) ordered = [...paintings].sort(spatialOrder);
+  return ordered;
+}
+
 function focusByIndex(idx) {
   const p = paintings.find(g => g.userData.idx === idx);
   if (p) focus(p);
 }
 
 addEventListener('keydown', e => {
-  if (e.key === 'ArrowRight') {
-    const next = focused ? (focused.userData.idx + 1) % COUNT : 0;
-    focusByIndex(next);
-  } else if (e.key === 'ArrowLeft') {
-    const prev = focused ? (focused.userData.idx - 1 + COUNT) % COUNT : COUNT - 1;
-    focusByIndex(prev);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    const dir = e.key === 'ArrowRight' ? 1 : -1;
+    const list = getOrder();
+    let pos = 0;
+    if (focused) {
+      pos = list.indexOf(focused);
+      pos = (pos + dir + list.length) % list.length;
+    } else if (dir < 0) {
+      pos = list.length - 1;
+    }
+    focus(list[pos]);
   } else if (e.key === 'Escape') {
     unfocus();
   }
