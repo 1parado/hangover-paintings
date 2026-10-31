@@ -113,18 +113,38 @@
   #bgmToggle:hover { background: rgba(58,47,30,.9); }
   #bgmToggle.on { color: #ffe9b8; border-color: #ffe9b8; }
 
+  /* ---------- 转墙按钮 ---------- */
+  .wallBtn {
+    position: fixed; top: 50%; transform: translateY(-50%); z-index: 11;
+    width: 46px; height: 64px; border-radius: 4px;
+    background: rgba(24,20,15,.75); border: 1px solid rgba(201,168,106,.4);
+    color: var(--gold); font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .3s, opacity .3s; user-select: none; touch-action: manipulation;
+  }
+  .wallBtn:hover { background: rgba(58,47,30,.9); }
+  #wallLeft  { left: 14px; }
+  #wallRight { right: 14px; }
+  body.panel-open #wallRight { right: 288px; }
+  .wallBtn:active { transform: translateY(-50%) scale(.94); }
+
   @media (max-width: 768px) {
-    header { padding: 16px 18px; }
-    header .brand { font-size: 15px; letter-spacing: .25em; }
+    header { padding: 14px 14px; }
+    header .brand { font-size: 14px; letter-spacing: .2em; }
     header .hint { display: none; }
-    #pricePanel { width: min(78vw, 252px); right: 16px; }
-    body.panel-open #togglePrice { right: calc(min(78vw, 252px) + 16px); }
-    #infoCard { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+    #pricePanel { width: min(80vw, 260px); right: 12px; padding: 18px 16px; }
+    body.panel-open #togglePrice { right: calc(min(80vw, 260px) + 12px); }
+    #infoCard { left: 12px; right: 64px; bottom: 12px; max-width: none; padding: 14px 16px; }
+    #bgmToggle { left: 12px; top: 12px; padding: 7px 12px; font-size: 11px; }
+    .wallBtn { width: 52px; height: 84px; font-size: 24px; }
+    #wallLeft { left: 8px; }
+    #wallRight { right: 8px; }
+    body.panel-open #wallRight { right: calc(min(80vw, 260px) + 12px); }
     footer { display: none; }
   }
 </style>
 </head>
-<body class="panel-open">
+<body class="panel-open" data-mobile-panel='{"closed":true}'>
 
 <canvas id="stage"></canvas>
 
@@ -167,6 +187,9 @@
 
 <button id="bgmToggle" title="开关背景音乐">♪ 音乐:关</button>
 
+<button class="wallBtn" id="wallLeft" title="看左边的墙">‹</button>
+<button class="wallBtn" id="wallRight" title="看右边的墙">›</button>
+
 <footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
 
 <audio id="bgm" loop preload="auto">
@@ -208,7 +231,17 @@ scene.background = new THREE.Color(0x2a2226);
 scene.fog = new THREE.FogExp2(0x2a2226, 0.01);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.05, 100);
-camera.position.set(0, 2.0, 10.5);
+// 移动端竖屏时拉远相机保证看到整面墙
+function initialCamZ() {
+  const ar = innerWidth / innerHeight;
+  if (ar < 0.8) return 17;      // 竖屏手机
+  if (ar < 1.2) return 13;      // 平板竖
+  return 10.5;
+}
+// 竖屏时 FOV 加大以容纳全墙
+const baseFov = innerWidth / innerHeight < 0.8 ? 62 : 50;
+camera.fov = baseFov;
+camera.position.set(0, 2.0, initialCamZ());
 
 const controls = new OrbitControls(camera, canvas);
 controls.target.set(0, 2.0, 0);
@@ -557,6 +590,31 @@ addEventListener('keydown', e => {
   }
 });
 
+/* ================= 转墙按钮 ================= */
+// 相机飞到某面墙正前方的观赏位
+const camZ0 = initialCamZ();
+const WALL_VIEWS = [
+  { pos: new THREE.Vector3(0, 2.0, camZ0),      tgt: new THREE.Vector3(0, 2.0, WALL_Z) },        // 正面
+  { pos: new THREE.Vector3(-camZ0, 2.0, 1),     tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 左墙
+  { pos: new THREE.Vector3( camZ0, 2.0, 1),     tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
+];
+let curWall = 0;
+function viewWall(i) {
+  curWall = ((i % 3) + 3) % 3;
+  if (focused) { setEmissive(focused, 0.06); focused = null; infoCard.classList.remove('show'); }
+  controls.autoRotate = false;
+  tweening = true;
+  tweenCam(WALL_VIEWS[curWall].pos.clone(), WALL_VIEWS[curWall].tgt.clone(), () => tweening = false);
+}
+document.getElementById('wallLeft').addEventListener('click', () => viewWall(curWall - 1));
+document.getElementById('wallRight').addEventListener('click', () => viewWall(curWall + 1));
+
+/* ================= 初始状态：移动端默认收起价目面板 ================= */
+if (matchMedia('(max-width: 768px)').matches) {
+  document.body.classList.remove('panel-open');
+  document.getElementById('pricePanel').classList.add('hidden-panel');
+}
+
 /* ================= BGM ================= */
 const bgm = document.getElementById('bgm');
 const bgmToggle = document.getElementById('bgmToggle');
@@ -579,10 +637,11 @@ document.getElementById('togglePrice').addEventListener('click', () => {
 });
 
 /* ================= 循环 ================= */
+const isTouch = matchMedia('(pointer: coarse)').matches;
 function animate(t) {
   requestAnimationFrame(animate);
-  // 鼠标视差：未聚焦时相机轻微跟随鼠标
-  if (!focused && !tweening) {
+  // 鼠标视差：未聚焦时相机轻微跟随鼠标（触摸设备关闭）
+  if (!focused && !tweening && !isTouch) {
     parallax.x += (pointer.x * 1.2 - parallax.x) * 0.03;
     parallax.y += (pointer.y * 0.5 - parallax.y) * 0.03;
     camera.position.x = baseCamX + parallax.x;
