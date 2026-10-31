@@ -115,7 +115,7 @@
 
   /* ---------- 转墙按钮 ---------- */
   .wallBtn {
-    position: fixed; top: 50%; transform: translateY(-50%); z-index: 11;
+    position: fixed; top: 34%; transform: translateY(-50%); z-index: 11;
     width: 46px; height: 64px; border-radius: 4px;
     background: rgba(24,20,15,.75); border: 1px solid rgba(201,168,106,.4);
     color: var(--gold); font-size: 20px; cursor: pointer;
@@ -124,7 +124,7 @@
   }
   .wallBtn:hover { background: rgba(58,47,30,.9); }
   #wallLeft  { left: 14px; }
-  #wallRight { right: 14px; }
+  #wallRight { right: 14px; top: auto; bottom: 18%; transform: none; }
   body.panel-open #wallRight { right: 288px; }
   .wallBtn:active { transform: translateY(-50%) scale(.94); }
 
@@ -137,8 +137,8 @@
     #infoCard { left: 12px; right: 64px; bottom: 12px; max-width: none; padding: 14px 16px; }
     #bgmToggle { left: 12px; top: 12px; padding: 7px 12px; font-size: 11px; }
     .wallBtn { width: 52px; height: 84px; font-size: 24px; }
-    #wallLeft { left: 8px; }
-    #wallRight { right: 8px; }
+    #wallLeft { left: 8px; top: 34%; }
+    #wallRight { right: 8px; bottom: 16%; }
     body.panel-open #wallRight { right: calc(min(80vw, 260px) + 12px); }
     footer { display: none; }
   }
@@ -193,7 +193,6 @@
 <footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
 
 <audio id="bgm" loop preload="auto">
-  <source src="bgm.aac" type="audio/aac">
   <source src="bgm.mp3" type="audio/mpeg">
 </audio>
 
@@ -303,6 +302,12 @@ room.add(sideL);
 const sideR = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
 sideR.position.set(WALL_W/2, 2.5, WALL_Z + 20); sideR.rotation.y = -Math.PI/2;
 room.add(sideR);
+
+// 后墙（正面墙对面）
+const backWall = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, H + 4), wallMat2);
+backWall.position.set(0, (H + 4)/2 - 0.5, WALL_Z + WALL_W);
+backWall.rotation.y = Math.PI;
+room.add(backWall);
 
 // 墙脚线
 const trimMat = new THREE.MeshStandardMaterial({ color: 0x3a2f1e, roughness: .5, metalness: .6 });
@@ -427,25 +432,23 @@ function addPainting(tex, idx) {
   plate.position.set(0, -Hh/2 - 0.22, 0.02);
   g.add(plate);
 
-  // ---- 放置：三面墙（正/左/右），每面墙 2 行 ----
-  // 三面墙定义：法线朝向展厅中心
+  // ---- 放置：四面墙，每面墙单行 ----
+  // 墙定义：法线朝向展厅中心；顺序 0正 1右 2后 3左（导航沿顺时针）
   const walls = [
-    { pos: new THREE.Vector3(0, 0, WALL_Z),        rotY: 0 },                          // 正面墙
-    { pos: new THREE.Vector3(-WALL_W/2, 0, WALL_Z + WALL_W/2), rotY: Math.PI/2 },      // 左墙
-    { pos: new THREE.Vector3( WALL_W/2, 0, WALL_Z + WALL_W/2), rotY: -Math.PI/2 },     // 右墙
+    { pos: new THREE.Vector3(0, 0, WALL_Z),                     rotY: 0 },           // 正面墙
+    { pos: new THREE.Vector3( WALL_W/2, 0, WALL_Z + WALL_W/2),  rotY: -Math.PI/2 },  // 右墙
+    { pos: new THREE.Vector3(0, 0, WALL_Z + WALL_W),            rotY: Math.PI },     // 后墙
+    { pos: new THREE.Vector3(-WALL_W/2, 0, WALL_Z + WALL_W/2),  rotY: Math.PI/2 },   // 左墙
   ];
-  const perWall = Math.ceil(COUNT / 3);             // 每面墙约 9 幅
-  const wallIdx = Math.floor(idx / perWall);        // 0,1,2
+  const perWall = Math.ceil(COUNT / 4);             // 每面墙 7 幅（26/4）
+  const wallIdx = Math.floor(idx / perWall);        // 0..3
   const iIn = idx % perWall;
   const nOn = Math.min(perWall, COUNT - wallIdx * perWall);
-  const perRow = Math.ceil(nOn / 2);
-  const row = Math.floor(iIn / perRow);             // 0 上排, 1 下排
-  const col = iIn % perRow;
-  const nInRow = row === 0 ? perRow : nOn - perRow;
-  const cellW = WALL_W / Math.max(perRow, 1);
-  const localX = -WALL_W/2 + cellW * (col + 0.5) + (row === 1 ? (WALL_W - nInRow * cellW) / 2 : 0);
-  const localY = row === 0 ? 3.4 : 1.6;
-  // 每列宽度有限，画要缩小
+  const col = iIn;
+  const cellW = WALL_W / perWall;
+  // 单行居中：nOn 幅占 WALL_W 中 nOn*cellW 的宽度，从居中位置排
+  const localX = -(nOn * cellW) / 2 + cellW * (col + 0.5);
+  const localY = 2.4;
   const scale = Math.min(1, cellW / (W + 0.5)) * 0.92;
   g.scale.setScalar(scale);
   const wl = walls[wallIdx];
@@ -553,14 +556,12 @@ function tweenCam(pos, tgt, done) {
 const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
 /* ================= 键盘导航 ================= */
-// 按「正面墙(左→右) → 右墙(前→后) → 左墙(后→前)」的空间顺序排列索引，
-// 左右键沿这条路径走，到墙尽头自然"拐弯"进入下一面墙
+// 按「正面墙(左→右) → 右墙(前→后) → 后墙(右→左) → 左墙(后→前)」顺时针顺序
 function spatialOrder(a, b) {
-  const wallOf = g => g.userData.wallIdx;
-  const wallRank = w => w === 0 ? 0 : (w === 2 ? 1 : 2);   // 正0 右1 左2
-  if (wallRank(wallOf(a)) !== wallRank(wallOf(b))) return wallRank(wallOf(a)) - wallRank(wallOf(b));
-  // 同墙：按 localX 从小到大（即从左到右/从前到后）
-  return a.userData.localX - b.userData.localX;
+  if (a.userData.wallIdx !== b.userData.wallIdx) return a.userData.wallIdx - b.userData.wallIdx;
+  // 同墙：右墙/后墙需要反转（localX 顺着行进方向递增）
+  const flip = a.userData.wallIdx === 1 || a.userData.wallIdx === 2 ? -1 : 1;
+  return (a.userData.localX - b.userData.localX) * flip;
 }
 let ordered = null;
 function getOrder() {
@@ -594,13 +595,14 @@ addEventListener('keydown', e => {
 // 相机飞到某面墙正前方的观赏位
 const camZ0 = initialCamZ();
 const WALL_VIEWS = [
-  { pos: new THREE.Vector3(0, 2.0, camZ0),      tgt: new THREE.Vector3(0, 2.0, WALL_Z) },        // 正面
-  { pos: new THREE.Vector3(-camZ0, 2.0, 1),     tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 左墙
-  { pos: new THREE.Vector3( camZ0, 2.0, 1),     tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
+  { pos: new THREE.Vector3(0, 2.0, camZ0),            tgt: new THREE.Vector3(0, 2.0, WALL_Z) },             // 正面
+  { pos: new THREE.Vector3( camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
+  { pos: new THREE.Vector3(0, 2.0, WALL_Z + WALL_W - camZ0), tgt: new THREE.Vector3(0, 2.0, WALL_Z + WALL_W) },// 后墙
+  { pos: new THREE.Vector3(-camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) },// 左墙
 ];
 let curWall = 0;
 function viewWall(i) {
-  curWall = ((i % 3) + 3) % 3;
+  curWall = ((i % 4) + 4) % 4;
   if (focused) { setEmissive(focused, 0.06); focused = null; infoCard.classList.remove('show'); }
   controls.autoRotate = false;
   tweening = true;
