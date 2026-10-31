@@ -223,9 +223,7 @@
 
 <footer>HANGOVER'S&nbsp;PAINTINGS&nbsp;·&nbsp;2026</footer>
 
-<audio id="bgm" loop preload="auto">
-  <source src="bgm.mp3" type="audio/mpeg">
-</audio>
+<audio id="bgm" loop preload="none" src="bgm.mp3"></audio>
 
 <script type="importmap">
 { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -236,6 +234,16 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// 资源基址：GitHub Pages 直连，失败自动切 jsDelivr CDN（国内更快）
+const CDNS = [
+  '',
+  'https://cdn.jsdelivr.net/gh/1parado/hangover-paintings@main/',
+];
+let cdnIdx = 0;
+function withCdn(path) {
+  return CDNS.map(c => c + path);
+}
 
 /* ================= 数据 ================= */
 const PRICES = {
@@ -501,12 +509,31 @@ function addPainting(tex, idx) {
   room.add(g);
 }
 
-IMGS.forEach((src, idx) => {
-  loader.load(src, tex => {
-    addPainting(tex, idx);
-    updateLoadProgress();
-    if (++loaded === COUNT) init();
-  }, undefined, () => { if (++loaded === COUNT) init(); }); // 失败也继续
+// 渐进式开馆：先挂画框，图片逐张补上；加载完 6 张即可进场
+const EARLY_N = 6;
+function tryInit() {
+  if (loaded >= EARLY_N || loaded + failed >= COUNT) init();
+}
+let failed = 0;
+
+IMGS.forEach((path, idx) => {
+  const urls = withCdn(path);
+  let u = 0;
+  const attempt = () => {
+    loader.load(urls[u], tex => {
+      addPainting(tex, idx);
+      loaded++;
+      updateLoadProgress();
+      // 已进场后补挂的画直接淡入
+      if (startDone) tex.needsUpdate = true;
+      tryInit();
+    }, undefined, () => {
+      u++;
+      if (u < urls.length) attempt();
+      else { failed++; loaded++; updateLoadProgress(); tryInit(); }
+    });
+  };
+  attempt();
 });
 
 /* ================= 交互 ================= */
@@ -659,6 +686,7 @@ const bgm = document.getElementById('bgm');
 const bgmToggle = document.getElementById('bgmToggle');
 bgmToggle.addEventListener('click', () => {
   if (bgm.paused) {
+    if (!bgm.src) bgm.src = withCdn('bgm.mp3')[0];
     bgm.volume = 0.45;
     bgm.play().then(() => bgmToggle.textContent = '♪ 音乐:开').catch(() => {
       bgmToggle.textContent = '♪ 未找到bgm.mp3';
@@ -711,7 +739,10 @@ function updateLoadProgress() {
   const el = document.getElementById('loadPct');
   if (el) el.textContent = Math.round(loaded / COUNT * 100) + '%';
 }
+let startDone = false;
 function init() {
+  if (startDone) return;
+  startDone = true;
   document.getElementById('loader').classList.add('hide');
 }
 </script>
