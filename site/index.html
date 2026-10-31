@@ -115,7 +115,7 @@
 
   /* ---------- 转墙按钮 ---------- */
   .wallBtn {
-    position: fixed; top: 34%; transform: translateY(-50%); z-index: 11;
+    position: fixed; top: 62%; transform: translateY(-50%); z-index: 11;
     width: 46px; height: 64px; border-radius: 4px;
     background: rgba(24,20,15,.75); border: 1px solid rgba(201,168,106,.4);
     color: var(--gold); font-size: 20px; cursor: pointer;
@@ -124,7 +124,7 @@
   }
   .wallBtn:hover { background: rgba(58,47,30,.9); }
   #wallLeft  { left: 14px; }
-  #wallRight { right: 14px; top: auto; bottom: 18%; transform: none; }
+  #wallRight { right: 14px; }
   body.panel-open #wallRight { right: 288px; }
   .wallBtn:active { transform: translateY(-50%) scale(.94); }
 
@@ -137,8 +137,8 @@
     #infoCard { left: 12px; right: 64px; bottom: 12px; max-width: none; padding: 14px 16px; }
     #bgmToggle { left: 12px; top: 12px; padding: 7px 12px; font-size: 11px; }
     .wallBtn { width: 52px; height: 84px; font-size: 24px; }
-    #wallLeft { left: 8px; top: 34%; }
-    #wallRight { right: 8px; bottom: 16%; }
+    #wallLeft { left: 8px; top: 62%; }
+    #wallRight { right: 8px; top: 62%; }
     body.panel-open #wallRight { right: calc(min(80vw, 260px) + 12px); }
     footer { display: none; }
   }
@@ -296,16 +296,19 @@ const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, H + 4), wallMat
 frontWall.position.set(0, (H + 4)/2 - 0.5, WALL_Z);
 frontWall.receiveShadow = true;
 room.add(frontWall);
-const sideL = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
-sideL.position.set(-WALL_W/2, 2.5, WALL_Z + 20); sideL.rotation.y = Math.PI/2;
+// 后墙位置（房间进深加大保证观赏位在室内）
+const BACK_Z = WALL_Z + 32;
+
+const sideL = new THREE.Mesh(new THREE.PlaneGeometry(BACK_Z - WALL_Z, H + 4), wallMat);
+sideL.position.set(-WALL_W/2, 2.5, (BACK_Z + WALL_Z)/2); sideL.rotation.y = Math.PI/2;
 room.add(sideL);
-const sideR = new THREE.Mesh(new THREE.PlaneGeometry(40, H + 4), wallMat);
-sideR.position.set(WALL_W/2, 2.5, WALL_Z + 20); sideR.rotation.y = -Math.PI/2;
+const sideR = new THREE.Mesh(new THREE.PlaneGeometry(BACK_Z - WALL_Z, H + 4), wallMat);
+sideR.position.set(WALL_W/2, 2.5, (BACK_Z + WALL_Z)/2); sideR.rotation.y = -Math.PI/2;
 room.add(sideR);
 
 // 后墙（正面墙对面）
 const backWall = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, H + 4), wallMat2);
-backWall.position.set(0, (H + 4)/2 - 0.5, WALL_Z + WALL_W);
+backWall.position.set(0, (H + 4)/2 - 0.5, BACK_Z);
 backWall.rotation.y = Math.PI;
 room.add(backWall);
 
@@ -437,7 +440,7 @@ function addPainting(tex, idx) {
   const walls = [
     { pos: new THREE.Vector3(0, 0, WALL_Z),                     rotY: 0 },           // 正面墙
     { pos: new THREE.Vector3( WALL_W/2, 0, WALL_Z + WALL_W/2),  rotY: -Math.PI/2 },  // 右墙
-    { pos: new THREE.Vector3(0, 0, WALL_Z + WALL_W),            rotY: Math.PI },     // 后墙
+    { pos: new THREE.Vector3(0, 0, BACK_Z),                     rotY: Math.PI },     // 后墙
     { pos: new THREE.Vector3(-WALL_W/2, 0, WALL_Z + WALL_W/2),  rotY: Math.PI/2 },   // 左墙
   ];
   const perWall = Math.ceil(COUNT / 4);             // 每面墙 7 幅（26/4）
@@ -556,19 +559,7 @@ function tweenCam(pos, tgt, done) {
 const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
 /* ================= 键盘导航 ================= */
-// 按「正面墙(左→右) → 右墙(前→后) → 后墙(右→左) → 左墙(后→前)」顺时针顺序
-function spatialOrder(a, b) {
-  if (a.userData.wallIdx !== b.userData.wallIdx) return a.userData.wallIdx - b.userData.wallIdx;
-  // 同墙：右墙/后墙需要反转（localX 顺着行进方向递增）
-  const flip = a.userData.wallIdx === 1 || a.userData.wallIdx === 2 ? -1 : 1;
-  return (a.userData.localX - b.userData.localX) * flip;
-}
-let ordered = null;
-function getOrder() {
-  if (!ordered) ordered = [...paintings].sort(spatialOrder);
-  return ordered;
-}
-
+// 直接按编号 01→26 循环，与墙的分布无关，直觉清晰
 function focusByIndex(idx) {
   const p = paintings.find(g => g.userData.idx === idx);
   if (p) focus(p);
@@ -577,15 +568,9 @@ function focusByIndex(idx) {
 addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
     const dir = e.key === 'ArrowRight' ? 1 : -1;
-    const list = getOrder();
-    let pos = 0;
-    if (focused) {
-      pos = list.indexOf(focused);
-      pos = (pos + dir + list.length) % list.length;
-    } else if (dir < 0) {
-      pos = list.length - 1;
-    }
-    focus(list[pos]);
+    let idx = focused ? focused.userData.idx + dir : (dir > 0 ? 0 : COUNT - 1);
+    idx = ((idx % COUNT) + COUNT) % COUNT;
+    focusByIndex(idx);
   } else if (e.key === 'Escape') {
     unfocus();
   }
@@ -597,7 +582,7 @@ const camZ0 = initialCamZ();
 const WALL_VIEWS = [
   { pos: new THREE.Vector3(0, 2.0, camZ0),            tgt: new THREE.Vector3(0, 2.0, WALL_Z) },             // 正面
   { pos: new THREE.Vector3( camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
-  { pos: new THREE.Vector3(0, 2.0, WALL_Z + WALL_W - camZ0), tgt: new THREE.Vector3(0, 2.0, WALL_Z + WALL_W) },// 后墙
+  { pos: new THREE.Vector3(0, 2.0, BACK_Z - camZ0), tgt: new THREE.Vector3(0, 2.0, BACK_Z) },                  // 后墙
   { pos: new THREE.Vector3(-camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) },// 左墙
 ];
 let curWall = 0;
