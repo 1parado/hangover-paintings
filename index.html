@@ -658,11 +658,14 @@ addEventListener('resize', updateArtNav);
 /* ================= 转墙按钮 ================= */
 // 相机飞到某面墙正前方的观赏位
 const camZ0 = initialCamZ();
+// 侧墙/后墙观赏距离不得越过墙体位置（WALL_W/2 = 15），否则相机会穿到房间外黑屏
+const sideD = Math.min(camZ0, WALL_W/2 - 2);
+const backD = Math.min(camZ0, (BACK_Z - WALL_Z) / 2 - 2);
 const WALL_VIEWS = [
   { pos: new THREE.Vector3(0, 2.0, camZ0),            tgt: new THREE.Vector3(0, 2.0, WALL_Z) },             // 正面
-  { pos: new THREE.Vector3( camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
-  { pos: new THREE.Vector3(0, 2.0, BACK_Z - camZ0), tgt: new THREE.Vector3(0, 2.0, BACK_Z) },                  // 后墙
-  { pos: new THREE.Vector3(-camZ0, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) },// 左墙
+  { pos: new THREE.Vector3( sideD, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3( WALL_W/2, 2.0, WALL_Z + WALL_W/2) }, // 右墙
+  { pos: new THREE.Vector3(0, 2.0, BACK_Z - backD), tgt: new THREE.Vector3(0, 2.0, BACK_Z) },                  // 后墙
+  { pos: new THREE.Vector3(-sideD, 2.0, WALL_Z + WALL_W/2), tgt: new THREE.Vector3(-WALL_W/2, 2.0, WALL_Z + WALL_W/2) },// 左墙
 ];
 let curWall = 0;
 function viewWall(i) {
