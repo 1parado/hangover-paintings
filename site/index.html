@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画橱 · Gallery</title>
+<style>
+  :root {
+    --gold: #c9a86a;
+    --gold-dim: #8a744a;
+    --ink: #0e0c0a;
+    --paper: #f2ead9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: var(--ink); font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; }
+
+  #stage { position: fixed; inset: 0; display: block; }
+
+  /* ---------- loading ---------- */
+  #loader {
+    position: fixed; inset: 0; z-index: 50; background: var(--ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--gold); transition: opacity .8s ease; gap: 18px;
+  }
+  #loader.hide { opacity: 0; pointer-events: none; }
+  #loader .ring {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 1px solid rgba(201,168,106,.25); border-top-color: var(--gold);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loader .txt { letter-spacing: .5em; font-size: 14px; text-indent: .5em; opacity: .8; }
+
+  /* ---------- header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 32px; pointer-events: none;
+  }
+  header .brand { color: var(--paper); font-size: 20px; letter-spacing: .35em; text-indent: .35em; }
+  header .brand small { display: block; color: var(--gold-dim); font-size: 10px; letter-spacing: .6em; margin-top: 6px; }
+  header .hint { color: rgba(242,234,217,.45); font-size: 12px; letter-spacing: .2em; }
+
+  /* ---------- price panel ---------- */
+  #pricePanel {
+    position: fixed; right: 28px; top: 50%; transform: translateY(-50%);
+    z-index: 10; width: 252px; max-height: 78vh;
+    background: linear-gradient(160deg, rgba(24,20,15,.92), rgba(12,10,8,.94));
+    border: 1px solid rgba(201,168,106,.35); border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6), inset 0 0 40px rgba(201,168,106,.05);
+    padding: 24px 22px; overflow-y: auto; backdrop-filter: blur(8px);
+    transition: transform .5s cubic-bezier(.22,1,.36,1), opacity .5s;
+  }
+  #pricePanel.hidden-panel { transform: translateY(-50%) translateX(300px); opacity: 0; }
+  #pricePanel::before {
+    content: ""; position: absolute; inset: 6px; pointer-events: none;
+    border: 1px solid rgba(201,168,106,.18);
+  }
+  #pricePanel h2 {
+    color: var(--gold); font-size: 17px; letter-spacing: .5em; text-indent: .5em;
+    text-align: center; margin-bottom: 4px; font-weight: 500;
+  }
+  #pricePanel .sub { color: var(--gold-dim); font-size: 10px; letter-spacing: .3em; text-align: center; margin-bottom: 18px; }
+  #pricePanel ul { list-style: none; }
+  #pricePanel li {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 2px; color: var(--paper); font-size: 13.5px; letter-spacing: .08em;
+    border-bottom: 1px dashed rgba(201,168,106,.18);
+  }
+  #pricePanel li .price { color: var(--gold); font-size: 15px; }
+  #pricePanel .note {
+    margin-top: 16px; color: rgba(242,234,217,.5); font-size: 11.5px;
+    line-height: 1.9; letter-spacing: .05em;
+  }
+  #pricePanel .note b { color: var(--gold); font-weight: normal; }
+
+  /* ---------- toggle ---------- */
+  #togglePrice {
+    position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+    z-index: 11; width: 34px; height: 76px;
+    background: rgba(24,20,15,.9); border: 1px solid rgba(201,168,106,.35); border-right: none;
+    color: var(--gold); cursor: pointer; font-size: 13px; letter-spacing: .1em;
+    writing-mode: vertical-lr; display: flex; align-items: center; justify-content: center;
+    transition: right .5s cubic-bezier(.22,1,.36,1);
+  }
+  body.panel-open #togglePrice { right: 284px; }
+
+  /* ---------- artwork info card ---------- */
+  #infoCard {
+    position: fixed; left: 32px; bottom: 32px; z-index: 10;
+    max-width: 340px; padding: 20px 24px;
+    background: linear-gradient(160deg, rgba(24,20,15,.92), rgba(12,10,8,.94));
+    border: 1px solid rgba(201,168,106,.35); border-left: 3px solid var(--gold);
+    color: var(--paper); opacity: 0; transform: translateY(16px);
+    transition: opacity .45s ease, transform .45s ease; pointer-events: none;
+  }
+  #infoCard.show { opacity: 1; transform: translateY(0); }
+  #infoCard .title { font-size: 17px; letter-spacing: .15em; color: var(--gold); margin-bottom: 8px; }
+  #infoCard .desc { font-size: 12.5px; line-height: 1.8; color: rgba(242,234,217,.75); letter-spacing: .06em; }
+
+  /* ---------- footer ---------- */
+  footer {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    color: rgba(242,234,217,.35); font-size: 11px; letter-spacing: .35em; z-index: 10; pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    header { padding: 16px 18px; }
+    header .brand { font-size: 15px; letter-spacing: .25em; }
+    header .hint { display: none; }
+    #pricePanel { width: min(78vw, 252px); right: 16px; }
+    body.panel-open #togglePrice { right: calc(min(78vw, 252px) + 16px); }
+    #infoCard { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+    footer { display: none; }
+  }
+</style>
+</head>
+<body class="panel-open">
+
+<canvas id="stage"></canvas>
+
+<div id="loader">
+  <div class="ring"></div>
+  <div class="txt">橱窗布置中</div>
+</div>
+
+<header>
+  <div class="brand">画 橱<small>ART&nbsp;SHOWCASE</small></div>
+  <div class="hint">拖动环视 · 滚轮缩放 · 点击画作查看</div>
+</header>
+
+<button id="togglePrice" title="展开/收起价目表">❦ 价目 ❦</button>
+
+<aside id="pricePanel">
+  <h2>稿价一览</h2>
+  <div class="sub">COMMISSION&nbsp;PRICE</div>
+  <ul>
+    <li><span>大头线稿</span><span class="price">15r</span></li>
+    <li><span>大头上色</span><span class="price">25r</span></li>
+    <li><span>请吃Q版小人</span><span class="price">25r</span></li>
+    <li><span>全身摸鱼线稿</span><span class="price">35r</span></li>
+    <li><span>全身立绘线稿</span><span class="price">50r</span></li>
+    <li><span>全身立绘上色＋背景</span><span class="price">200r</span></li>
+    <li><span>大场景 or 刁钻角度</span><span class="price">300r</span></li>
+    <li><span>小漫画 OC 剧情 4p</span><span class="price">250r</span></li>
+  </ul>
+  <div class="note">
+    具体价格可详谈，以上只是预计价位～<br>
+    加急：<b>＋15r</b> · 主包还是学生，请多关照<br>
+    希望大家试吃愉快！
+  </div>
+</aside>
+
+<div id="infoCard">
+  <div class="title"></div>
+  <div class="desc"></div>
+</div>
+
+<footer>DRAWINGS&nbsp;·&nbsp;2026</footer>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+               "tween": "https://unpkg.com/@tweenjs/tween.js@23.1.3/dist/tween.esm.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ================= 数据 ================= */
+const PRICES = {
+  15:'大头线稿 · 15r', 25:'大头上色 · 25r', 35:'全身摸鱼线稿 · 35r', 50:'全身立绘线稿 · 50r'
+};
+const COUNT = 26;
+const IMGS = [];
+const EXT = { 9:'png', 13:'png', 15:'png' };
+for (let i = 1; i <= COUNT; i++) IMGS.push(`img/art${String(i).padStart(2,'0')}.${EXT[i] || 'jpg'}`);
+
+/* ================= 渲染器 / 场景 ================= */
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0908);
+scene.fog = new THREE.FogExp2(0x0b0908, 0.045);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 9);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.2;
+controls.maxDistance = 12;
+controls.maxPolarAngle = Math.PI * 0.55;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+
+/* ================= 灯光 ================= */
+scene.add(new THREE.AmbientLight(0x2a2118, 1.4));
+
+const keyLight = new THREE.DirectionalLight(0xffe3b3, 0.5);
+keyLight.position.set(3, 8, 6);
+scene.add(keyLight);
+
+function spotlight(x, y, z, targetY = 1.7) {
+  const s = new THREE.SpotLight(0xffdca0, 22, 14, 0.5, 0.55, 1.6);
+  s.position.set(x, y, z);
+  s.castShadow = false;
+  scene.add(s, s.target);
+  s.target.position.set(x, targetY, z * 0.2);
+  return s;
+}
+
+/* ================= 房间 ================= */
+const room = new THREE.Group();
+scene.add(room);
+
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x14100c, roughness: 0.95 });
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x0d0b09, roughness: 0.25, metalness: 0.4
+});
+const R = 11;               // 房间半径（八边形）
+const H = 5;
+
+// 地面
+const floor = new THREE.Mesh(new THREE.CircleGeometry(R + 2, 64), floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+room.add(floor);
+
+// 八面墙
+const wallGeo = new THREE.PlaneGeometry(2 * R * Math.tan(Math.PI/8) + 0.4, H);
+for (let i = 0; i < 8; i++) {
+  const a = i * Math.PI/4 + Math.PI/8;
+  const w = new THREE.Mesh(wallGeo, wallMat);
+  w.position.set(Math.sin(a) * R, H/2, Math.cos(a) * R);
+  w.rotation.y = a;
+  w.receiveShadow = true;
+  room.add(w);
+}
+
+// 墙脚线 + 天花环
+const trimMat = new THREE.MeshStandardMaterial({ color: 0x3a2f1e, roughness: .5, metalness: .6 });
+const trim = new THREE.Mesh(new THREE.CylinderGeometry(R+.05, R+.05, .12, 8, 1, true), trimMat);
+trim.position.y = 0.06; room.add(trim);
+const crown = new THREE.Mesh(new THREE.CylinderGeometry(R+.05, R+.05, .1, 8, 1, true), trimMat);
+crown.position.y = H - .05; room.add(crown);
+const ceiling = new THREE.Mesh(new THREE.CircleGeometry(R + 2, 64),
+  new THREE.MeshStandardMaterial({ color: 0x080605, roughness: 1 }));
+ceiling.rotation.x = Math.PI/2; ceiling.position.y = H; room.add(ceiling);
+
+/* ================= 画框 ================= */
+const frameMat  = new THREE.MeshStandardMaterial({ color: 0x2e2114, roughness: 0.35, metalness: 0.55 });
+const goldMat   = new THREE.MeshStandardMaterial({ color: 0x8a744a, roughness: 0.3,  metalness: 0.8 });
+const planeGeo  = new THREE.PlaneGeometry(1, 1);
+
+const paintings = [];
+const loader = new THREE.TextureLoader();
+let loaded = 0;
+
+function addPainting(tex, idx) {
+  const img = tex.image;
+  const ratio = img.height / img.width;
+  const W = 2.1 / Math.sqrt(ratio);   // 面积大致一致
+  const Hh = W * ratio;
+  const g = new THREE.Group();
+
+  // 画框（外）
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.22, Hh + 0.22, 0.09), frameMat);
+  frame.castShadow = true;
+  g.add(frame);
+  // 金边
+  const bevel = new THREE.Mesh(new THREE.BoxGeometry(W + 0.12, Hh + 0.12, 0.095), goldMat);
+  g.add(bevel);
+  // 画布
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const art = new THREE.Mesh(planeGeo, new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.85, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.06
+  }));
+  art.scale.set(W, Hh, 1);
+  art.position.z = 0.05;
+  g.add(art);
+
+  // 挂绳 + 钉子（装饰）
+  const hook = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), goldMat);
+  hook.position.set(0, Hh/2 + 0.28, 0.02);
+  g.add(hook);
+
+  // 画下方铭牌
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x6b5a3a, metalness: .7, roughness: .35 }));
+  plate.position.set(0, -Hh/2 - 0.22, 0.02);
+  g.add(plate);
+
+  // ---- 放置：三面墙均匀分布 ----
+  const perWall = Math.ceil(COUNT / 3);
+  const wall = Math.floor(idx / perWall);           // 0,1,2
+  const iIn   = idx % perWall;
+  const nOn   = Math.min(perWall, COUNT - wall * perWall);
+  const angles = [0, Math.PI*2/3, Math.PI*4/3][wall];
+  const spread = Math.PI * 0.42;
+  const t = nOn === 1 ? 0.5 : iIn / (nOn - 1);
+  const ang = angles - spread/2 + spread * t;
+  const RR = R - 0.1;
+  g.position.set(Math.sin(ang) * RR, 1.75, Math.cos(ang) * RR);
+  g.rotation.y = ang;
+  g.lookAt(0, 1.75, 0);
+
+  // 每幅画上方一盏射灯
+  const sl = spotlight(g.position.x, 4.4, g.position.z);
+  sl.target.position.set(g.position.x, 1.7, g.position.z);
+
+  g.userData = { idx, W, Hh, ang };
+  paintings.push(g);
+  room.add(g);
+}
+
+IMGS.forEach((src, idx) => {
+  loader.load(src, tex => {
+    addPainting(tex, idx);
+    if (++loaded === COUNT) init();
+  }, undefined, () => { if (++loaded === COUNT) init(); }); // 失败也继续
+});
+
+/* ================= 交互 ================= */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let hovered = null, focused = null, tweening = false;
+const infoCard = document.getElementById('infoCard');
+
+function pick(e) {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(paintings, true);
+  if (!hits.length) return null;
+  let o = hits[0].object;
+  while (o && !o.userData.idx) o = o.parent;
+  return o && o.userData.idx ? o : null;
+}
+
+function setEmissive(p, v) {
+  p.children.forEach(c => {
+    if (c.material && c.material.emissiveMap) c.material.emissiveIntensity = v;
+  });
+}
+
+canvas.addEventListener('pointermove', e => {
+  if (tweening) return;
+  const p = pick(e);
+  if (p !== hovered) {
+    if (hovered && hovered !== focused) setEmissive(hovered, 0.06);
+    hovered = p;
+    if (hovered) setEmissive(hovered, 0.35);
+    canvas.style.cursor = hovered ? 'pointer' : 'grab';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const p = pick(e);
+  if (!p) { unfocus(); return; }
+  focus(p);
+});
+
+function focus(p) {
+  if (focused) setEmissive(focused, 0.06);
+  focused = p;
+  setEmissive(p, 0.5);
+  controls.autoRotate = false;
+  tweening = true;
+
+  const idx = p.userData.idx;
+  const d = p.userData.Hh;
+  const dir = p.getWorldDirection(new THREE.Vector3());
+  const target = p.position.clone().add(dir.multiplyScalar(Math.max(2.2, d * 1.5)));
+  target.y = 1.75;
+
+  tweenCam(target, p.position, () => { tweening = false; });
+
+  const desc = PRICES[[15,25,35,50][idx % 4]] || '约稿详谈 · 价格见右侧价目表';
+  infoCard.querySelector('.title').textContent = `作品 ${String(idx+1).padStart(2,'0')}`;
+  infoCard.querySelector('.desc').textContent = desc;
+  infoCard.classList.add('show');
+}
+
+function unfocus() {
+  if (focused) { setEmissive(focused, 0.06); focused = null; }
+  infoCard.classList.remove('show');
+  controls.autoRotate = true;
+  tweening = true;
+  tweenCam(new THREE.Vector3(0, 1.6, 9), new THREE.Vector3(0, 1.6, 0), () => tweening = false);
+}
+
+let camAnim = null;
+function tweenCam(pos, tgt, done) {
+  camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, t: 0, done };
+}
+const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+
+/* ================= 面板开关 ================= */
+document.getElementById('togglePrice').addEventListener('click', () => {
+  document.body.classList.toggle('panel-open');
+  document.getElementById('pricePanel').classList.toggle('hidden-panel');
+});
+
+/* ================= 循环 ================= */
+function animate(t) {
+  requestAnimationFrame(animate);
+  if (camAnim) {
+    camAnim.t = Math.min(1, camAnim.t + 0.018);
+    const e = easeInOut(camAnim.t);
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, e);
+    controls.target.lerpVectors(camAnim.t0, camAnim.t1, e);
+    if (camAnim.t >= 1) { const d = camAnim.done; camAnim = null; d && d(); }
+  }
+  // 轻微漂浮呼吸感
+  paintings.forEach((p, i) => { p.position.y = 1.75 + Math.sin(t * 0.0008 + i) * 0.008; });
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate(0);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= 启动 ================= */
+function init() {
+  document.getElementById('loader').classList.add('hide');
+}
+</script>
+</body>
+</html>
